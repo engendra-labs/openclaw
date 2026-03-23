@@ -241,12 +241,11 @@ export async function loadImageFromRef(
     }
 
     // loadWebMedia handles local file paths (including file:// URLs)
-    const effectiveLocalRoots =
-      options?.roots && options.roots.length > 0
-        ? options.roots.map((r) => r.path)
-        : options?.workspaceOnly
-          ? [workspaceDir]
-          : undefined;
+    const effectiveLocalRoots = options?.roots
+      ? options.roots.map((r) => r.path)
+      : options?.workspaceOnly
+        ? [workspaceDir]
+        : undefined;
 
     const media = options?.sandbox
       ? await loadWebMedia(targetPath, {

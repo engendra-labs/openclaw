@@ -62,7 +62,8 @@ export function resolveMediaToolLocalRoots(
   //   - dir roots via prefix matching: resolved.startsWith(resolvedRoot + path.sep)
   //   - file roots via exact matching: resolved === resolvedRoot
   // Both use realpath resolution, so symlink escapes are handled.
-  if (options?.roots && options.roots.length > 0) {
+  // Empty roots array is a valid deny-all policy — return empty to block all media reads
+  if (options?.roots) {
     return options.roots.map((r) => r.path);
   }
   const workspaceDir = normalizeWorkspaceDir(workspaceDirRaw);
