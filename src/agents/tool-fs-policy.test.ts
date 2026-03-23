@@ -111,12 +111,14 @@ describe("resolveToolFsConfig", () => {
 });
 
 describe("createToolFsPolicy", () => {
-  it("sets workspaceOnly false when roots provided", () => {
+  it("preserves workspaceOnly when roots also provided (sandbox fallback)", () => {
     const policy = createToolFsPolicy({
       workspaceOnly: true,
       roots: [{ path: "/root", kind: "dir", access: "rw" }],
     });
-    expect(policy.workspaceOnly).toBe(false);
+    // workspaceOnly preserved — in sandbox mode, roots are ignored and
+    // workspaceOnly must still be honored as the fallback guard
+    expect(policy.workspaceOnly).toBe(true);
     expect(policy.roots).toHaveLength(1);
   });
 

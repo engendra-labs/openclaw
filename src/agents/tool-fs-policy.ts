@@ -17,7 +17,10 @@ export function createToolFsPolicy(params: {
     );
   }
   return {
-    workspaceOnly: params.roots ? false : params.workspaceOnly === true,
+    // Preserve workspaceOnly even when roots is set — in sandbox mode, roots are
+    // ignored and workspaceOnly must still be honored as the fallback guard.
+    // In host mode, pi-tools.ts uses roots (not workspaceOnly) when both exist.
+    workspaceOnly: params.workspaceOnly === true,
     roots: params.roots,
   };
 }

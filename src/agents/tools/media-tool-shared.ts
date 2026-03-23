@@ -62,7 +62,11 @@ export function resolveMediaToolLocalRoots(
   //   - dir roots via prefix matching: resolved.startsWith(resolvedRoot + path.sep)
   //   - file roots via exact matching: resolved === resolvedRoot
   // Both use realpath resolution, so symlink escapes are handled.
-  // Empty roots array is a valid deny-all policy — return empty to block all media reads
+  // Empty roots array is a valid deny-all policy — return empty to block all media reads.
+  // Note: kind="file" roots are passed as plain paths. assertLocalMediaAllowed uses
+  // realpath + prefix matching, so a misconfigured file root pointing to a directory
+  // would allow its subtree. The primary guard (validatePathAgainstRoots) enforces
+  // file-vs-dir semantics correctly; media roots are defense-in-depth.
   if (options?.roots) {
     return options.roots.map((r) => r.path);
   }
