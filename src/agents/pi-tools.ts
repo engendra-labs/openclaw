@@ -23,6 +23,12 @@ import { createOpenClawTools } from "./openclaw-tools.js";
 import { wrapToolWithAbortSignal } from "./pi-tools.abort.js";
 import { wrapToolWithBeforeToolCallHook } from "./pi-tools.before-tool-call.js";
 import {
+  resolveRoots,
+  wrapToolMultiRootGuard,
+  validatePathAgainstRoots,
+  assertAliasSafe,
+} from "./pi-tools.multi-root-guard.js";
+import {
   isToolAllowedByPolicies,
   resolveEffectiveToolPolicy,
   resolveGroupToolPolicy,
@@ -345,8 +351,15 @@ export function createOpenClawCodingTools(options?: {
   const fsConfig = resolveToolFsConfig({ cfg: options?.config, agentId });
   const fsPolicy = createToolFsPolicy({
     workspaceOnly: isMemoryFlushRun || fsConfig.workspaceOnly,
+    roots: fsConfig.roots,
   });
+  const resolvedRoots = fsPolicy.roots ? resolveRoots(fsPolicy.roots) : undefined;
   const sandboxRoot = sandbox?.workspaceDir;
+  if (resolvedRoots && sandboxRoot) {
+    console.warn(
+      `[tools.fs.roots] Agent has roots configured but is running in sandbox mode. Roots are ignored for sandbox-mode tools — sandbox provides isolation via Docker.`,
+    );
+  }
   const sandboxFsBridge = sandbox?.fsBridge;
   const allowWorkspaceWrites = sandbox?.workspaceAccess !== "ro";
   const workspaceRoot = resolveWorkspaceRoot(options?.workspaceDir);
@@ -378,6 +391,13 @@ export function createOpenClawCodingTools(options?: {
           modelContextWindowTokens: options?.modelContextWindowTokens,
           imageSanitization,
         });
+        if (resolvedRoots) {
+          return [
+            wrapToolMultiRootGuard(sandboxed, sandboxRoot, resolvedRoots, {
+              containerWorkdir: sandbox.containerWorkdir,
+            }),
+          ];
+        }
         return [
           workspaceOnly
             ? wrapToolWorkspaceRootGuardWithOptions(sandboxed, sandboxRoot, {
@@ -391,6 +411,9 @@ export function createOpenClawCodingTools(options?: {
         modelContextWindowTokens: options?.modelContextWindowTokens,
         imageSanitization,
       });
+      if (resolvedRoots) {
+        return [wrapToolMultiRootGuard(wrapped, workspaceRoot, resolvedRoots)];
+      }
       return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
     }
     if (tool.name === "bash" || tool.name === execToolName) {
@@ -401,6 +424,9 @@ export function createOpenClawCodingTools(options?: {
         return [];
       }
       const wrapped = createHostWorkspaceWriteTool(workspaceRoot, { workspaceOnly });
+      if (resolvedRoots) {
+        return [wrapToolMultiRootGuard(wrapped, workspaceRoot, resolvedRoots)];
+      }
       return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
     }
     if (tool.name === "edit") {
@@ -408,6 +434,9 @@ export function createOpenClawCodingTools(options?: {
         return [];
       }
       const wrapped = createHostWorkspaceEditTool(workspaceRoot, { workspaceOnly });
+      if (resolvedRoots) {
+        return [wrapToolMultiRootGuard(wrapped, workspaceRoot, resolvedRoots)];
+      }
       return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
     }
     return [tool];
@@ -455,6 +484,13 @@ export function createOpenClawCodingTools(options?: {
     cleanupMs: cleanupMsOverride ?? execConfig.cleanupMs,
     scopeKey,
   });
+  const patchRootsValidator = resolvedRoots
+    ? async (resolvedPath: string) => {
+        const resolvedRootsNonNull = resolvedRoots;
+        validatePathAgainstRoots(resolvedPath, "write", resolvedRootsNonNull);
+        await assertAliasSafe(resolvedPath, resolvedRootsNonNull);
+      }
+    : undefined;
   const applyPatchTool =
     !applyPatchEnabled || (sandboxRoot && !allowWorkspaceWrites)
       ? null
@@ -465,30 +501,45 @@ export function createOpenClawCodingTools(options?: {
               ? { root: sandboxRoot, bridge: sandboxFsBridge! }
               : undefined,
           workspaceOnly: applyPatchWorkspaceOnly,
+          rootsValidator: patchRootsValidator,
         });
   const tools: AnyAgentTool[] = [
     ...base,
     ...(sandboxRoot
       ? allowWorkspaceWrites
         ? [
-            workspaceOnly
-              ? wrapToolWorkspaceRootGuardWithOptions(
+            resolvedRoots
+              ? wrapToolMultiRootGuard(
                   createSandboxedEditTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
                   sandboxRoot,
-                  {
-                    containerWorkdir: sandbox.containerWorkdir,
-                  },
+                  resolvedRoots,
+                  { containerWorkdir: sandbox.containerWorkdir },
                 )
-              : createSandboxedEditTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
-            workspaceOnly
-              ? wrapToolWorkspaceRootGuardWithOptions(
+              : workspaceOnly
+                ? wrapToolWorkspaceRootGuardWithOptions(
+                    createSandboxedEditTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
+                    sandboxRoot,
+                    {
+                      containerWorkdir: sandbox.containerWorkdir,
+                    },
+                  )
+                : createSandboxedEditTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
+            resolvedRoots
+              ? wrapToolMultiRootGuard(
                   createSandboxedWriteTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
                   sandboxRoot,
-                  {
-                    containerWorkdir: sandbox.containerWorkdir,
-                  },
+                  resolvedRoots,
+                  { containerWorkdir: sandbox.containerWorkdir },
                 )
-              : createSandboxedWriteTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
+              : workspaceOnly
+                ? wrapToolWorkspaceRootGuardWithOptions(
+                    createSandboxedWriteTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
+                    sandboxRoot,
+                    {
+                      containerWorkdir: sandbox.containerWorkdir,
+                    },
+                  )
+                : createSandboxedWriteTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
           ]
         : []
       : []),
