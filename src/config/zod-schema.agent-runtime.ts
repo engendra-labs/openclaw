@@ -1,3 +1,4 @@
+import path from "node:path";
 import { z } from "zod";
 import { getBlockedNetworkModeReason } from "../agents/sandbox/network-mode.js";
 import { parseDurationMs } from "../cli/parse-duration.js";
@@ -465,7 +466,7 @@ const ToolFsSchema = z
     if (val.roots) {
       for (let i = 0; i < val.roots.length; i++) {
         const root = val.roots[i];
-        if (root && !root.path.startsWith("/")) {
+        if (root && !path.isAbsolute(root.path)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["roots", i, "path"],

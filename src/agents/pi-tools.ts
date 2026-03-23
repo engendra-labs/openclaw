@@ -391,13 +391,9 @@ export function createOpenClawCodingTools(options?: {
           modelContextWindowTokens: options?.modelContextWindowTokens,
           imageSanitization,
         });
-        if (resolvedRoots) {
-          return [
-            wrapToolMultiRootGuard(sandboxed, sandboxRoot, resolvedRoots, {
-              containerWorkdir: sandbox.containerWorkdir,
-            }),
-          ];
-        }
+        // Roots are NOT applied in sandbox mode — Docker provides isolation.
+        // Wrapping sandboxed tools with host-path roots would cause false denials
+        // because tool args use container-namespace paths, not host paths.
         return [
           workspaceOnly
             ? wrapToolWorkspaceRootGuardWithOptions(sandboxed, sandboxRoot, {
@@ -484,13 +480,15 @@ export function createOpenClawCodingTools(options?: {
     cleanupMs: cleanupMsOverride ?? execConfig.cleanupMs,
     scopeKey,
   });
-  const patchRootsValidator = resolvedRoots
-    ? async (resolvedPath: string) => {
-        const resolvedRootsNonNull = resolvedRoots;
-        validatePathAgainstRoots(resolvedPath, "write", resolvedRootsNonNull);
-        await assertAliasSafe(resolvedPath, resolvedRootsNonNull);
-      }
-    : undefined;
+  // Roots validator only for host-mode apply_patch — skip in sandbox mode
+  const patchRootsValidator =
+    resolvedRoots && !sandboxRoot
+      ? async (resolvedPath: string) => {
+          const resolvedRootsNonNull = resolvedRoots;
+          validatePathAgainstRoots(resolvedPath, "write", resolvedRootsNonNull);
+          await assertAliasSafe(resolvedPath, resolvedRootsNonNull);
+        }
+      : undefined;
   const applyPatchTool =
     !applyPatchEnabled || (sandboxRoot && !allowWorkspaceWrites)
       ? null

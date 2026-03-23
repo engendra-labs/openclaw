@@ -92,7 +92,11 @@ export function wrapToolMultiRootGuard(
         (args && typeof args === "object" ? (args as Record<string, unknown>) : undefined);
       const filePath = record?.path;
 
-      if (typeof filePath === "string" && filePath.trim()) {
+      if (typeof filePath !== "string" || !filePath.trim()) {
+        console.debug(
+          `[tools.fs.roots] wrapToolMultiRootGuard: could not extract filePath from args for tool '${tool.name}', skipping roots check`,
+        );
+      } else {
         const resolved = resolveToolPathAgainstWorkspaceRoot({
           filePath,
           root: workspaceRoot,
