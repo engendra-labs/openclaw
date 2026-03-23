@@ -33,7 +33,8 @@ export function resolveToolFsConfig(params: { cfg?: OpenClawConfig; agentId?: st
 
   // Agent-level roots take full precedence
   const roots = agentFs?.roots ?? globalFs?.roots;
-  if (roots && roots.length > 0) {
+  // Empty roots array is a valid deny-all policy — don't fall through to unrestricted
+  if (roots) {
     return { roots };
   }
 

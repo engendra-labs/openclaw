@@ -81,4 +81,44 @@ describe("validatePathAgainstRoots", () => {
   it("handles trailing slashes on paths", () => {
     expect(() => validatePathAgainstRoots("/workspace/", "read", roots)).not.toThrow();
   });
+
+  it("most-specific root wins for overlapping dir roots", () => {
+    const overlapping = makeRoots(
+      { path: "/data", kind: "dir", access: "ro" },
+      { path: "/data/project", kind: "dir", access: "rw" },
+    );
+    // Write under /data/project should succeed (rw), not fail because /data is ro
+    expect(() =>
+      validatePathAgainstRoots("/data/project/file.txt", "write", overlapping),
+    ).not.toThrow();
+    // Write under /data (outside /data/project) should still fail (ro)
+    expect(() => validatePathAgainstRoots("/data/other/file.txt", "write", overlapping)).toThrow(
+      /read-only/,
+    );
+  });
+
+  it("most-specific root wins regardless of order", () => {
+    // Same roots but reversed order — should produce same result
+    const overlapping = makeRoots(
+      { path: "/data/project", kind: "dir", access: "rw" },
+      { path: "/data", kind: "dir", access: "ro" },
+    );
+    expect(() =>
+      validatePathAgainstRoots("/data/project/file.txt", "write", overlapping),
+    ).not.toThrow();
+    expect(() => validatePathAgainstRoots("/data/other/file.txt", "write", overlapping)).toThrow(
+      /read-only/,
+    );
+  });
+
+  it("file root takes precedence over dir root for exact match", () => {
+    const mixed = makeRoots(
+      { path: "/data", kind: "dir", access: "rw" },
+      { path: "/data/secret.md", kind: "file", access: "ro" },
+    );
+    // Exact file match uses file root (ro), not dir root (rw)
+    expect(() => validatePathAgainstRoots("/data/secret.md", "write", mixed)).toThrow(/read-only/);
+    // Other files under /data use dir root (rw)
+    expect(() => validatePathAgainstRoots("/data/other.md", "write", mixed)).not.toThrow();
+  });
 });

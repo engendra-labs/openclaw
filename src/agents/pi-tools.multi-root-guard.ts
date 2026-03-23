@@ -12,39 +12,56 @@ export function resolveRoots(roots: FsRoot[]): FsRootResolved[] {
   return roots.map((r) => ({ ...r, resolvedPath: path.resolve(r.path) }));
 }
 
+/**
+ * Find the most-specific matching root for a candidate path.
+ * For overlapping dir roots (e.g., /data ro + /data/project rw),
+ * the longest (most-specific) path wins, making root order irrelevant.
+ * File roots always take precedence over dir roots for exact matches.
+ */
+export function findMatchingRoot(
+  candidate: string,
+  roots: FsRootResolved[],
+): FsRootResolved | undefined {
+  let bestDir: FsRootResolved | undefined;
+
+  for (const root of roots) {
+    if (root.kind === "file") {
+      if (candidate === root.resolvedPath) {
+        return root; // exact file match — highest precedence
+      }
+      continue;
+    }
+    // kind === "dir"
+    if (!isPathInside(root.resolvedPath, candidate)) {
+      continue;
+    }
+    // Pick the most-specific (longest path) dir root
+    if (!bestDir || root.resolvedPath.length > bestDir.resolvedPath.length) {
+      bestDir = root;
+    }
+  }
+
+  return bestDir;
+}
+
 export function validatePathAgainstRoots(
   resolvedPath: string,
   operation: "read" | "write",
   roots: FsRootResolved[],
 ): void {
   const candidate = path.resolve(resolvedPath);
+  const match = findMatchingRoot(candidate, roots);
 
-  for (const root of roots) {
-    if (root.kind === "file") {
-      if (candidate !== root.resolvedPath) {
-        continue;
-      }
-      if (operation === "write" && root.access === "ro") {
-        throw new Error(
-          `Access denied: path '${resolvedPath}' matches read-only file root '${root.path}'`,
-        );
-      }
-      return; // matched
-    }
-
-    // kind === "dir" — use existing isPathInside for cross-platform safety
-    if (!isPathInside(root.resolvedPath, candidate)) {
-      continue;
-    }
-    if (operation === "write" && root.access === "ro") {
-      throw new Error(
-        `Access denied: path '${resolvedPath}' is inside read-only root '${root.path}'`,
-      );
-    }
-    return; // matched
+  if (!match) {
+    throw new Error(`Access denied: path '${resolvedPath}' is outside allowed filesystem roots`);
   }
 
-  throw new Error(`Access denied: path '${resolvedPath}' is outside allowed filesystem roots`);
+  if (operation === "write" && match.access === "ro") {
+    const label = match.kind === "file" ? "file root" : "root";
+    throw new Error(
+      `Access denied: path '${resolvedPath}' is inside read-only ${label} '${match.path}'`,
+    );
+  }
 }
 
 /**
@@ -54,24 +71,28 @@ export function validatePathAgainstRoots(
 export async function assertAliasSafe(
   resolvedPath: string,
   roots: FsRootResolved[],
+  options?: { allowFinalSymlinkForUnlink?: boolean; allowFinalHardlinkForUnlink?: boolean },
 ): Promise<void> {
   const candidate = path.resolve(resolvedPath);
+  const match = findMatchingRoot(candidate, roots);
+  if (!match) {
+    return;
+  } // no match — validatePathAgainstRoots already threw
 
-  for (const root of roots) {
-    const matches =
-      root.kind === "file"
-        ? candidate === root.resolvedPath
-        : isPathInside(root.resolvedPath, candidate);
-    if (matches) {
-      await assertNoPathAliasEscape({
-        absolutePath: candidate,
-        rootPath: root.resolvedPath,
-        boundaryLabel: `fs root '${root.path}'`,
-        policy: PATH_ALIAS_POLICIES.strict,
-      });
-      return;
-    }
-  }
+  const policy =
+    options?.allowFinalSymlinkForUnlink || options?.allowFinalHardlinkForUnlink
+      ? {
+          allowFinalSymlinkForUnlink: options.allowFinalSymlinkForUnlink,
+          allowFinalHardlinkForUnlink: options.allowFinalHardlinkForUnlink,
+        }
+      : PATH_ALIAS_POLICIES.strict;
+
+  await assertNoPathAliasEscape({
+    absolutePath: candidate,
+    rootPath: match.resolvedPath,
+    boundaryLabel: `fs root '${match.path}'`,
+    policy,
+  });
 }
 
 export function wrapToolMultiRootGuard(

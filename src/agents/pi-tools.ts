@@ -483,10 +483,13 @@ export function createOpenClawCodingTools(options?: {
   // Roots validator only for host-mode apply_patch — skip in sandbox mode
   const patchRootsValidator =
     resolvedRoots && !sandboxRoot
-      ? async (resolvedPath: string) => {
+      ? async (resolvedPath: string, options?: { isUnlink?: boolean }) => {
           const resolvedRootsNonNull = resolvedRoots;
           validatePathAgainstRoots(resolvedPath, "write", resolvedRootsNonNull);
-          await assertAliasSafe(resolvedPath, resolvedRootsNonNull);
+          await assertAliasSafe(resolvedPath, resolvedRootsNonNull, {
+            allowFinalSymlinkForUnlink: options?.isUnlink,
+            allowFinalHardlinkForUnlink: options?.isUnlink,
+          });
         }
       : undefined;
   const applyPatchTool =
