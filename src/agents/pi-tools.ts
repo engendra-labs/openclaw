@@ -423,20 +423,25 @@ export function createOpenClawCodingTools(options?: {
       if (sandboxRoot) {
         return [];
       }
-      const wrapped = createHostWorkspaceWriteTool(workspaceRoot, { workspaceOnly });
       if (resolvedRoots) {
+        // When roots are active, create the tool WITHOUT workspaceOnly — the
+        // multi-root guard handles containment. The internal workspaceOnly guard
+        // would reject writes to allowed roots outside the workspace.
+        const wrapped = createHostWorkspaceWriteTool(workspaceRoot, { workspaceOnly: false });
         return [wrapToolMultiRootGuard(wrapped, workspaceRoot, resolvedRoots)];
       }
+      const wrapped = createHostWorkspaceWriteTool(workspaceRoot, { workspaceOnly });
       return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
     }
     if (tool.name === "edit") {
       if (sandboxRoot) {
         return [];
       }
-      const wrapped = createHostWorkspaceEditTool(workspaceRoot, { workspaceOnly });
       if (resolvedRoots) {
+        const wrapped = createHostWorkspaceEditTool(workspaceRoot, { workspaceOnly: false });
         return [wrapToolMultiRootGuard(wrapped, workspaceRoot, resolvedRoots)];
       }
+      const wrapped = createHostWorkspaceEditTool(workspaceRoot, { workspaceOnly });
       return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
     }
     return [tool];
