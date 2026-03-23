@@ -367,7 +367,11 @@ export function createOpenClawCodingTools(options?: {
   const applyPatchConfig = execConfig.applyPatch;
   // Secure by default: apply_patch is workspace-contained unless explicitly disabled.
   // (tools.fs.workspaceOnly is a separate umbrella flag for read/write/edit/apply_patch.)
-  const applyPatchWorkspaceOnly = workspaceOnly || applyPatchConfig?.workspaceOnly !== false;
+  // When roots are configured, rootsValidator handles containment — disable workspace guard
+  // so it doesn't reject paths inside allowed roots that are outside the workspace.
+  const applyPatchWorkspaceOnly = resolvedRoots
+    ? false
+    : workspaceOnly || applyPatchConfig?.workspaceOnly !== false;
   const applyPatchEnabled =
     !!applyPatchConfig?.enabled &&
     isOpenAIProvider(options?.modelProvider) &&
