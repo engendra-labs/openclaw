@@ -51,6 +51,8 @@ export function resolveEffectiveToolFsWorkspaceOnly(params: {
   agentId?: string;
 }): boolean {
   const config = resolveToolFsConfig(params);
-  // When roots is set, workspaceOnly is irrelevant (roots takes precedence)
-  return !config.roots && config.workspaceOnly === true;
+  // Preserve workspaceOnly even when roots is set — in sandbox mode, roots are
+  // ignored and workspaceOnly must still be honored (e.g., prompt-image auto-load).
+  // In host mode, pi-tools.ts uses roots instead of workspaceOnly when both exist.
+  return config.workspaceOnly === true;
 }
