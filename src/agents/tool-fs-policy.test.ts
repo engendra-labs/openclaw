@@ -108,6 +108,16 @@ describe("resolveToolFsConfig", () => {
     expect(fsConfig.roots).toBeUndefined();
     expect(fsConfig.workspaceOnly).toBeUndefined();
   });
+
+  it("preserves empty roots array as deny-all policy", () => {
+    const cfg: OpenClawConfig = {
+      tools: { fs: { roots: [] } },
+    };
+    const fsConfig = resolveToolFsConfig({ cfg });
+    expect(fsConfig.roots).toBeDefined();
+    expect(fsConfig.roots).toHaveLength(0);
+    expect(fsConfig.workspaceOnly).toBeUndefined();
+  });
 });
 
 describe("createToolFsPolicy", () => {

@@ -1,6 +1,10 @@
 import path from "node:path";
 import { describe, it, expect } from "vitest";
-import { validatePathAgainstRoots, type FsRootResolved } from "./pi-tools.multi-root-guard.js";
+import {
+  validatePathAgainstRoots,
+  findMatchingRoot,
+  type FsRootResolved,
+} from "./pi-tools.multi-root-guard.js";
 
 function makeRoots(
   ...entries: Array<{ path: string; kind: "dir" | "file"; access: "ro" | "rw" }>
@@ -120,5 +124,32 @@ describe("validatePathAgainstRoots", () => {
     expect(() => validatePathAgainstRoots("/data/secret.md", "write", mixed)).toThrow(/read-only/);
     // Other files under /data use dir root (rw)
     expect(() => validatePathAgainstRoots("/data/other.md", "write", mixed)).not.toThrow();
+  });
+});
+
+describe("findMatchingRoot", () => {
+  const roots = makeRoots(
+    { path: "/workspace", kind: "dir", access: "rw" },
+    { path: "/data/context.md", kind: "file", access: "ro" },
+  );
+
+  it("returns undefined for empty roots", () => {
+    expect(findMatchingRoot("/workspace/file.txt", [])).toBeUndefined();
+  });
+
+  it("returns undefined for path outside all roots", () => {
+    expect(findMatchingRoot("/etc/passwd", roots)).toBeUndefined();
+  });
+
+  it("returns the matching dir root", () => {
+    const match = findMatchingRoot("/workspace/file.txt", roots);
+    expect(match?.path).toBe("/workspace");
+    expect(match?.kind).toBe("dir");
+  });
+
+  it("returns the matching file root for exact match", () => {
+    const match = findMatchingRoot("/data/context.md", roots);
+    expect(match?.path).toBe("/data/context.md");
+    expect(match?.kind).toBe("file");
   });
 });
