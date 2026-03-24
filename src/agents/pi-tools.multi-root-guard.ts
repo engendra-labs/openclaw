@@ -1,12 +1,19 @@
 import path from "node:path";
 import type { FsRoot } from "../config/types.tools.js";
 import { assertNoPathAliasEscape, PATH_ALIAS_POLICIES } from "../infra/path-alias-guards.js";
-import { isPathInside } from "../infra/path-guards.js";
+import { isPathInside, normalizeWindowsPathForComparison } from "../infra/path-guards.js";
 import { normalizeToolParams } from "./pi-tools.params.js";
 import { resolveToolPathAgainstWorkspaceRoot } from "./pi-tools.read.js";
 import type { AnyAgentTool } from "./pi-tools.types.js";
 
 export type FsRootResolved = FsRoot & { resolvedPath: string };
+
+function pathsEqual(a: string, b: string): boolean {
+  if (process.platform === "win32") {
+    return normalizeWindowsPathForComparison(a) === normalizeWindowsPathForComparison(b);
+  }
+  return a === b;
+}
 
 export function resolveRoots(roots: FsRoot[]): FsRootResolved[] {
   return roots.map((r) => ({ ...r, resolvedPath: path.resolve(r.path) }));
@@ -26,7 +33,7 @@ export function findMatchingRoot(
 
   for (const root of roots) {
     if (root.kind === "file") {
-      if (candidate === root.resolvedPath) {
+      if (pathsEqual(candidate, root.resolvedPath)) {
         return root; // exact file match — highest precedence
       }
       continue;
