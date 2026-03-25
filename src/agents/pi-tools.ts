@@ -520,38 +520,24 @@ export function createOpenClawCodingTools(options?: {
     ...(sandboxRoot
       ? allowWorkspaceWrites
         ? [
-            resolvedRoots
-              ? wrapToolMultiRootGuard(
+            workspaceOnly
+              ? wrapToolWorkspaceRootGuardWithOptions(
                   createSandboxedEditTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
                   sandboxRoot,
-                  resolvedRoots,
-                  { containerWorkdir: sandbox.containerWorkdir },
+                  {
+                    containerWorkdir: sandbox.containerWorkdir,
+                  },
                 )
-              : workspaceOnly
-                ? wrapToolWorkspaceRootGuardWithOptions(
-                    createSandboxedEditTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
-                    sandboxRoot,
-                    {
-                      containerWorkdir: sandbox.containerWorkdir,
-                    },
-                  )
-                : createSandboxedEditTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
-            resolvedRoots
-              ? wrapToolMultiRootGuard(
+              : createSandboxedEditTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
+            workspaceOnly
+              ? wrapToolWorkspaceRootGuardWithOptions(
                   createSandboxedWriteTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
                   sandboxRoot,
-                  resolvedRoots,
-                  { containerWorkdir: sandbox.containerWorkdir },
+                  {
+                    containerWorkdir: sandbox.containerWorkdir,
+                  },
                 )
-              : workspaceOnly
-                ? wrapToolWorkspaceRootGuardWithOptions(
-                    createSandboxedWriteTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
-                    sandboxRoot,
-                    {
-                      containerWorkdir: sandbox.containerWorkdir,
-                    },
-                  )
-                : createSandboxedWriteTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
+              : createSandboxedWriteTool({ root: sandboxRoot, bridge: sandboxFsBridge! }),
           ]
         : []
       : []),
