@@ -167,7 +167,9 @@ export async function monitorWebInbox(options: {
     content: AnyMessageContent,
     options?: MiscMessageGenerationOptions,
   ) => {
-    const result = await sock.sendMessage(jid, content, options);
+    const result = options
+      ? await sock.sendMessage(jid, content, options)
+      : await sock.sendMessage(jid, content);
     rememberOutboundMessage(jid, result);
     return result;
   };
