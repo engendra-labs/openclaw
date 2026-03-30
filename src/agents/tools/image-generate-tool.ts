@@ -481,14 +481,17 @@ export function createImageGenerateTool(options?: {
   }
   const effectiveCfg =
     applyImageGenerationModelConfigDefaults(cfg, imageGenerationModelConfig) ?? cfg;
-  const sandboxConfig =
-    options?.sandbox && options.sandbox.root.trim()
-      ? {
-          root: options.sandbox.root.trim(),
-          bridge: options.sandbox.bridge,
-          workspaceOnly: options.fsPolicy?.workspaceOnly === true,
-        }
-      : null;
+  const _localRoots = resolveMediaToolLocalRoots(options?.workspaceDir, {
+    workspaceOnly: options?.fsPolicy?.workspaceOnly === true,
+    roots: options?.fsPolicy?.roots,
+  });
+  const sandboxConfig = options?.sandbox?.root.trim()
+    ? {
+        root: options.sandbox.root.trim(),
+        bridge: options.sandbox.bridge,
+        workspaceOnly: options.fsPolicy?.workspaceOnly === true,
+      }
+    : null;
 
   return {
     label: "Image Generation",

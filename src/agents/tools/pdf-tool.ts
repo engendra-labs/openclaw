@@ -327,6 +327,11 @@ export function createPdfTool(options?: {
       ? Math.floor(maxPagesDefault)
       : DEFAULT_MAX_PAGES;
 
+  const _localRoots = resolveMediaToolLocalRoots(options?.workspaceDir, {
+    workspaceOnly: options?.fsPolicy?.workspaceOnly === true,
+    roots: options?.fsPolicy?.roots,
+  });
+
   const description =
     "Analyze one or more PDF documents with a model. Supports native PDF analysis for Anthropic and Google models, with text/image extraction fallback for other providers. Use pdf for a single path/URL, or pdfs for multiple (up to 10). Provide a prompt describing what to analyze.";
 
@@ -404,14 +409,13 @@ export function createPdfTool(options?: {
       const pagesRaw =
         typeof record.pages === "string" && record.pages.trim() ? record.pages.trim() : undefined;
 
-      const sandboxConfig: SandboxedBridgeMediaPathConfig | null =
-        options?.sandbox && options.sandbox.root.trim()
-          ? {
-              root: options.sandbox.root.trim(),
-              bridge: options.sandbox.bridge,
-              workspaceOnly: options.fsPolicy?.workspaceOnly === true,
-            }
-          : null;
+      const sandboxConfig: SandboxedBridgeMediaPathConfig | null = options?.sandbox?.root.trim()
+        ? {
+            root: options.sandbox.root.trim(),
+            bridge: options.sandbox.bridge,
+            workspaceOnly: options.fsPolicy?.workspaceOnly === true,
+          }
+        : null;
 
       // MARK: - Load each PDF
       const loadedPdfs: Array<{

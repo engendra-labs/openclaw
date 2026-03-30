@@ -274,6 +274,11 @@ export function createImageTool(options?: {
     ? "Analyze one or more images with a vision model. Use image for a single path/URL, or images for multiple (up to 20). Only use this tool when images were NOT already provided in the user's message. Images mentioned in the prompt are automatically visible to you."
     : "Analyze one or more images with the configured image model (agents.defaults.imageModel). Use image for a single path/URL, or images for multiple (up to 20). Provide a prompt describing what to analyze.";
 
+  const _localRoots = resolveMediaToolLocalRoots(options?.workspaceDir, {
+    workspaceOnly: options?.fsPolicy?.workspaceOnly === true,
+    roots: options?.fsPolicy?.roots,
+  });
+
   return {
     label: "Image",
     name: "image",
@@ -344,14 +349,13 @@ export function createImageTool(options?: {
       const maxBytesMb = typeof record.maxBytesMb === "number" ? record.maxBytesMb : undefined;
       const maxBytes = pickMaxBytes(options?.config, maxBytesMb);
 
-      const sandboxConfig: SandboxedBridgeMediaPathConfig | null =
-        options?.sandbox && options?.sandbox.root.trim()
-          ? {
-              root: options.sandbox.root.trim(),
-              bridge: options.sandbox.bridge,
-              workspaceOnly: options.fsPolicy?.workspaceOnly === true,
-            }
-          : null;
+      const sandboxConfig: SandboxedBridgeMediaPathConfig | null = options?.sandbox?.root.trim()
+        ? {
+            root: options.sandbox.root.trim(),
+            bridge: options.sandbox.bridge,
+            workspaceOnly: options.fsPolicy?.workspaceOnly === true,
+          }
+        : null;
 
       // MARK: - Load and resolve each image
       const loadedImages: Array<{
