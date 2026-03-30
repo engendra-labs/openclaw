@@ -67,7 +67,10 @@ export const whatsappPlugin: ChannelPlugin<ResolvedWhatsAppAccount> =
       idLabel: "whatsappSenderId",
     },
     threading: {
-      topLevelReplyToMode: "whatsapp",
+      scopedAccountReplyToMode: {
+        resolveAccount: (cfg, accountId) => resolveWhatsAppAccount({ cfg, accountId }),
+        resolveReplyToMode: (account) => account.replyToMode,
+      },
     },
     outbound: {
       ...createWhatsAppOutboundBase({

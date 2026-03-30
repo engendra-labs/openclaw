@@ -19,6 +19,10 @@ import {
 import type { OpenClawConfig } from "./runtime-api.js";
 
 const hoisted = vi.hoisted(() => ({
+  sendMessageWhatsApp: vi.fn(async () => ({
+    messageId: "wa-msg-1",
+    toJid: "1555@s.whatsapp.net",
+  })),
   sendPollWhatsApp: vi.fn(async () => ({ messageId: "wa-poll-1", toJid: "1555@s.whatsapp.net" })),
   handleWhatsAppAction: vi.fn(async () => ({ content: [{ type: "text", text: '{"ok":true}' }] })),
   loginWeb: vi.fn(async () => {}),
@@ -37,6 +41,7 @@ vi.mock("./runtime.js", () => ({
     },
     channel: {
       whatsapp: {
+        sendMessageWhatsApp: hoisted.sendMessageWhatsApp,
         sendPollWhatsApp: hoisted.sendPollWhatsApp,
         handleWhatsAppAction: hoisted.handleWhatsAppAction,
       },
@@ -162,6 +167,66 @@ describe("whatsappPlugin outbound sendMedia", () => {
       }),
     );
     expect(result).toMatchObject({ channel: "whatsapp", messageId: "msg-1" });
+  });
+
+  it("forwards replyToId as quotedMessageKey on outbound sends", async () => {
+    const sendWhatsApp = vi.fn(async () => ({
+      messageId: "msg-1",
+      toJid: "15551234567@s.whatsapp.net",
+    }));
+
+    const outbound = whatsappPlugin.outbound;
+    if (!outbound?.sendText) {
+      throw new Error("whatsapp outbound sendText is unavailable");
+    }
+
+    await outbound.sendText({
+      cfg: {} as never,
+      to: "whatsapp:+15551234567",
+      text: "reply",
+      replyToId: "quoted-1",
+      accountId: "default",
+      deps: { sendWhatsApp },
+    });
+
+    expect(sendWhatsApp).toHaveBeenCalledWith(
+      "whatsapp:+15551234567",
+      "reply",
+      expect.objectContaining({
+        accountId: "default",
+        quotedMessageKey: {
+          id: "quoted-1",
+          remoteJid: "15551234567@s.whatsapp.net",
+          fromMe: false,
+        },
+        verbose: false,
+      }),
+    );
+  });
+});
+
+describe("whatsappPlugin threading", () => {
+  it("resolves replyToMode from account-scoped config", () => {
+    const resolveReplyToMode = whatsappPlugin.threading?.resolveReplyToMode;
+    if (!resolveReplyToMode) {
+      throw new Error("whatsapp threading resolver is unavailable");
+    }
+
+    const cfg = {
+      channels: {
+        whatsapp: {
+          replyToMode: "off",
+          accounts: {
+            assistant: {
+              replyToMode: "all",
+            },
+          },
+        },
+      },
+    } as unknown as OpenClawConfig;
+
+    expect(resolveReplyToMode({ cfg, accountId: "assistant" })).toBe("all");
+    expect(resolveReplyToMode({ cfg, accountId: "default" })).toBe("off");
   });
 });
 

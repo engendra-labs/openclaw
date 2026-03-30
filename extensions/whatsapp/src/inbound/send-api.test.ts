@@ -183,7 +183,7 @@ describe("createWebSendApi", () => {
 
   it("omits quoted options when quotedMessageKey is not provided", async () => {
     await api.sendMessage("+1555", "plain");
-    expect(sendMessage).toHaveBeenCalledWith("1555@s.whatsapp.net", { text: "plain" }, undefined);
+    expect(sendMessage).toHaveBeenCalledWith("1555@s.whatsapp.net", { text: "plain" });
   });
 
   it("sends composing presence updates to the recipient JID", async () => {

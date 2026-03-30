@@ -32,6 +32,7 @@ function makeMsg(): WebInboundMsg {
     from: "+10000000000",
     to: "+20000000000",
     id: "msg-1",
+    chatId: "10000000000@s.whatsapp.net",
     reply: vi.fn(async () => undefined),
     sendMedia: vi.fn(async () => undefined),
   } as unknown as WebInboundMsg;
@@ -113,6 +114,7 @@ describe("deliverWebReply", () => {
     expect(msg.reply).toHaveBeenCalledTimes(1);
     expect(msg.reply).toHaveBeenCalledWith(
       "Intro line\nReasoning: appears in content but is not a prefix",
+      undefined,
     );
   });
 
@@ -129,8 +131,8 @@ describe("deliverWebReply", () => {
     });
 
     expect(msg.reply).toHaveBeenCalledTimes(2);
-    expect(msg.reply).toHaveBeenNthCalledWith(1, "aaa");
-    expect(msg.reply).toHaveBeenNthCalledWith(2, "aaa");
+    expect(msg.reply).toHaveBeenNthCalledWith(1, "aaa", undefined);
+    expect(msg.reply).toHaveBeenNthCalledWith(2, "aaa", undefined);
     expect(replyLogger.info).toHaveBeenCalledWith(expect.any(Object), "auto-reply sent (text)");
   });
 
@@ -181,8 +183,9 @@ describe("deliverWebReply", () => {
         caption: "aaa",
         mimetype: "image/jpeg",
       }),
+      undefined,
     );
-    expect(msg.reply).toHaveBeenCalledWith("aaa");
+    expect(msg.reply).toHaveBeenCalledWith("aaa", undefined);
     expect(replyLogger.info).toHaveBeenCalledWith(expect.any(Object), "auto-reply sent (media)");
     expect(logVerbose).toHaveBeenCalled();
   });
@@ -258,6 +261,7 @@ describe("deliverWebReply", () => {
         mimetype: "audio/ogg",
         caption: "cap",
       }),
+      undefined,
     );
   });
 
@@ -286,6 +290,7 @@ describe("deliverWebReply", () => {
         caption: "cap",
         mimetype: "video/mp4",
       }),
+      undefined,
     );
   });
 
@@ -316,6 +321,7 @@ describe("deliverWebReply", () => {
         caption: "cap",
         mimetype: "application/octet-stream",
       }),
+      undefined,
     );
   });
 
